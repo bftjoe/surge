@@ -1,8 +1,6 @@
 #include <iostream>
 #include <chrono>
-#include "tables.h"
-#include "position.h"
-#include "types.h"
+#include "surge.h"
 
 
 //Computes the perft of the position for a given depth, using bulk-counting
