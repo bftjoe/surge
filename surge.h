@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <string>
 #include <ostream>
+#include <sstream>
 #include <iostream>
 #include <vector>
 
@@ -443,7 +444,42 @@ public:
 		for (int i = 0; i < 64; i++) board[i] = NO_PIECE;
 		history[0] = UndoInfo();
 	}
-	
+  
+	Position(const std::string& fen): Position(){
+    int square = a8;
+    for (char ch : fen.substr(0, fen.find(' '))) {
+      if (isdigit(ch))
+        square += (ch - '0') * EAST;
+      else if (ch == '/')
+        square += 2 * SOUTH;
+      else
+        put_piece(Piece(PIECE_STR.find(ch)), Square(square++));
+    }
+
+    std::istringstream ss(fen.substr(fen.find(' ')));
+    unsigned char token;
+
+    ss >> token;
+    side_to_play = token == 'w' ? WHITE : BLACK;
+
+    history[game_ply].entry = ALL_CASTLING_MASK;
+    while (ss >> token && !isspace(token)) {
+      switch (token) {
+      case 'K':
+        history[game_ply].entry &= ~WHITE_OO_MASK;
+        break;
+      case 'Q':
+        history[game_ply].entry &= ~WHITE_OOO_MASK;
+        break;
+      case 'k':
+        history[game_ply].entry &= ~BLACK_OO_MASK;
+        break;
+      case 'q':
+        history[game_ply].entry &= ~BLACK_OOO_MASK;
+        break;
+      }
+    }
+  }
 	//Places a piece on a particular square and updates the hash. Placing a piece on a square that is 
 	//already occupied is an error
 	inline void put_piece(Piece pc, Square s) {
@@ -463,10 +499,8 @@ public:
 	void move_piece_quiet(Square from, Square to);
 
 	friend std::ostream& operator<<(std::ostream& os, const Position& p);
-	static void set(const std::string& fen, Position& p);
 	std::string fen() const;
 
-	Position& operator=(const Position&) = delete;
 	inline bool operator==(const Position& other) const { return hash == other.hash; }
 
 	inline Bitboard bitboard_of(Piece pc) const { return piece_bb[pc]; }
@@ -1059,8 +1093,6 @@ private:
 	Move *last;
 };
 
-#include <sstream>
-
 //Zobrist keys for each piece and each square
 //Used to incrementally update the hash key of a position
 uint64_t zobrist::zobrist_table[NPIECES][NSQUARES];
@@ -1128,42 +1160,6 @@ std::string Position::fen() const {
 	return fen.str();
 }
 
-//Updates a position according to an FEN string
-void Position::set(const std::string& fen, Position& p) {
-	int square = a8;
-	for (char ch : fen.substr(0, fen.find(' '))) {
-		if (isdigit(ch))
-			square += (ch - '0') * EAST;
-		else if (ch == '/')
-			square += 2 * SOUTH;
-		else
-			p.put_piece(Piece(PIECE_STR.find(ch)), Square(square++));
-	}
-
-	std::istringstream ss(fen.substr(fen.find(' ')));
-	unsigned char token;
-
-	ss >> token;
-	p.side_to_play = token == 'w' ? WHITE : BLACK;
-
-	p.history[p.game_ply].entry = ALL_CASTLING_MASK;
-	while (ss >> token && !isspace(token)) {
-		switch (token) {
-		case 'K':
-			p.history[p.game_ply].entry &= ~WHITE_OO_MASK;
-			break;
-		case 'Q':
-			p.history[p.game_ply].entry &= ~WHITE_OOO_MASK;
-			break;
-		case 'k':
-			p.history[p.game_ply].entry &= ~BLACK_OO_MASK;
-			break;
-		case 'q':
-			p.history[p.game_ply].entry &= ~BLACK_OOO_MASK;
-			break;
-		}
-	}
-}
 	
 
 //Moves a piece to a (possibly empty) square on the board and updates the hash
